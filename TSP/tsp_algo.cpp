@@ -6,16 +6,22 @@
 #define LIMIT INT_MAX
 using namespace std;
 
+// структура ветви
 struct node
 {
+	// стоимость пройденного пути
 	int cost;
+	// последняя пройденная вершина
 	int current_vertice;
+	// матрица смежности с учетом пройденного пути
 	vector<vector<int>> matrix;
+	// вектор всех взятых ребер (ребро - пара вершиин; первая - начало, вторая - конец)
 	vector<pair<int, int>> edges;
+	// множество всех пройденных вершин
 	set<int> visited_vertices;
 };
 
-// initialization of adjacent matrix of directed graph
+// инициализация графа (матрицы) случайными значениями
 void init_random_DG(vector<vector<int>>& graph, int n)
 {
 	for (int i = 0; i < n; i++)
@@ -32,7 +38,7 @@ void init_random_DG(vector<vector<int>>& graph, int n)
 	}
 }
 
-// printing graph (matrix)
+// вывод графа (матрицы) в консоль
 void print_graph(vector<vector<int>>& graph)
 {
 	for (int i = 0; i < size(graph); i++)
@@ -52,8 +58,8 @@ void print_graph(vector<vector<int>>& graph)
 	}
 }
 
-// just soting function for nodes
-bool comparing_nodes(node a, node b)
+// вспомогательная функция для стандартной sort для сортировки ветвей по стоимости
+bool comparing_nodes(const node& a, const node& b)
 {
 	if (a.cost < b.cost)
 	{
@@ -62,62 +68,61 @@ bool comparing_nodes(node a, node b)
 	return 0;
 }
 
-// main algotithm
-node branch_and_bound(vector<vector<int>> graph)
+// основной алгоритм
+node branch_and_bound(const vector<vector<int>>& graph)
 {
-	// just set of all vertices, cuz we need it
+	// множество всех вершин графа
 	set<int> all_vertices;
 	for (int i = 0; i < size(graph); i++)
 	{
 		all_vertices.insert(i);
 	}
 
-	// vector of nodes - we will write here all nodes
+	// вектор ветвей
 	vector<node> nodes;
 	nodes.push_back({ 0, 0, graph, {}, { 0 } });
 
-	// main loop
+	// основной цикл
 	while (1)
 	{
-		// we checked all nodes and did not find solution, so we ran out of nodes with possible edges to go
+		// проверка на наличие незакрытых ветвей (если их нет, значит цикл не существует)
 		if (!size(nodes))
 		{
 			return {};
 		}
 
-		// sorting nodes by their cost
+		// сортировка ветвей по их стоимостям (для дальнейшего использования минимальой)
 		sort(nodes.begin(), nodes.end(), comparing_nodes);
 
-		//initialization of set difference between all vertices and visitied vertices in node with minimal cost
+		// инициализируем множество, являющееся разностью множества всех вершин и множества всех посещенных вершин (минимальной ветви)
 		set<int> diff;
 		set_difference(all_vertices.begin(), all_vertices.end(), nodes[0].visited_vertices.begin(), nodes[0].visited_vertices.end(), inserter(diff, diff.begin()));
 
-		// if difference is empty - we got two situations
+		// множество всех вершин и множество всех посещенных вершин совпадают
 		if (size(diff) == 0)
 		{
-			// we found all edges and need to add last one for the cycle if it exists
+			// все вершины обошли, осталось добавить конечное ребро, соединяющее последнюю посещенную вершину с самой первой
 			if (size(nodes[0].edges) + 1 == size(graph) and (nodes[0].matrix[nodes[0].current_vertice][0] != LIMIT))
 			{
 				nodes[0].edges.push_back(make_pair(nodes[0].current_vertice, 0));
 				nodes[0].cost += nodes[0].matrix[nodes[0].current_vertice][0];
-				// we are adding this node to the list to check on a new iteration that it is minimal
+				// мы добавляем эту ветвь в вектор ветвей, чтобы на следующих итерациях проверить - является ли полученанная ветвь минимальным циклом
 				nodes.push_back(nodes[0]);
 			}
 
-			// we checked that cycle is actually minimal (end of algotothm)
+			// минимальной ветвью оказалась та, которая содержит в себе весь цикл, следовательно это искомый цикл
 			else if (size(nodes[0].edges) == size(graph))
 			{
 				return nodes[0];
 			}
 		}
 
-		// creating new nodes to the unvisited vertices
+		// создаем новые ветви добавляя в минимальную непосещенные вершины
 		for (auto& j : diff)
 		{
-			// just checking if we can go to new vertice
+			// проверка на достижимость (конечный вес) непосещенной вершины 
 			if (nodes[0].matrix[nodes[0].current_vertice][j] != LIMIT)
 			{
-				// creating new node from node with minimal cost
 				node tmp;
 				tmp = nodes[0];
 				tmp.cost += nodes[0].matrix[nodes[0].current_vertice][j];
@@ -131,11 +136,10 @@ node branch_and_bound(vector<vector<int>> graph)
 				tmp.matrix[j][nodes[0].current_vertice] = LIMIT;
 				tmp.visited_vertices.insert(j);
 
-				// adding new node to vector
 				nodes.push_back(tmp);
 			}
 		}
-		// erasing old node that we used to get new ones 
+		// удаляем старую ветвь, которую рассмотрели
 		nodes.erase(nodes.begin());
 	}
 }
@@ -146,48 +150,48 @@ int main()
 	node cycle;
 	vector<vector<int>> graph;
 	graph = {};
-	bool flag_2 = 0;
+	bool graph_is_chosen;
 	do
 	{
 		cout << "Which graph will be used?\n1 - test 1\n2 - test 2\n3 - test 3\n4 - test 4\n5 - random graph" << endl;
 		cin >> answer;
 		cout << endl;
-		flag_2 = 0;
+		graph_is_chosen = true;
 		switch (answer)
 		{
-			case 1:
-				// minimal weight is 42
-				graph = { {LIMIT, 1, 2, 3, 4}, {14, LIMIT, 15, 16, 5}, {13, 20, LIMIT, 17, 6}, {12, 19, 18, LIMIT, 7}, {11, 10, 9, 8, LIMIT} };
-				break;
+		case 1:
+			// минимальный вес 42
+			graph = { {LIMIT, 1, 2, 3, 4}, {14, LIMIT, 15, 16, 5}, {13, 20, LIMIT, 17, 6}, {12, 19, 18, LIMIT, 7}, {11, 10, 9, 8, LIMIT} };
+			break;
 
-			case 2:
-				// minimal weight is 28
-				graph = { {LIMIT, 20, 30, 10, 11}, {15, LIMIT, 16, 4, 2}, {3, 5, LIMIT, 2, 4}, {19, 6, 18, LIMIT, 3}, {16, 4, 7, 16, LIMIT} };
-				break;
+		case 2:
+			// минимальный вес 28
+			graph = { {LIMIT, 20, 30, 10, 11}, {15, LIMIT, 16, 4, 2}, {3, 5, LIMIT, 2, 4}, {19, 6, 18, LIMIT, 3}, {16, 4, 7, 16, LIMIT} };
+			break;
 
-			case 3:
-				// no solution
-				graph = { {LIMIT, LIMIT, LIMIT, LIMIT, 1}, {LIMIT, LIMIT, 1, LIMIT, LIMIT}, {LIMIT, LIMIT, LIMIT, 1, LIMIT}, {1, LIMIT, LIMIT, LIMIT, LIMIT}, {LIMIT, LIMIT, LIMIT, LIMIT, LIMIT} };
-				break;
+		case 3:
+			// цикл не существует
+			graph = { {LIMIT, LIMIT, LIMIT, LIMIT, 1}, {LIMIT, LIMIT, 1, LIMIT, LIMIT}, {LIMIT, LIMIT, LIMIT, 1, LIMIT}, {1, LIMIT, LIMIT, LIMIT, LIMIT}, {LIMIT, LIMIT, LIMIT, LIMIT, LIMIT} };
+			break;
 
-			case 4:
-				// minimal weight is 7
-				graph = { {LIMIT, 2, 1}, {10, LIMIT, 4}, {1, 1, LIMIT} };
-				break;
+		case 4:
+			// минимальный вес 7
+			graph = { {LIMIT, 2, 1}, {10, LIMIT, 4}, {1, 1, LIMIT} };
+			break;
 
-			case 5:
-				int n;
-				cout << "Write number of vertices in this graph: ";
-				cin >> n;
-				cout << endl;
-				init_random_DG(graph, n);
-				break;
+		case 5:
+			int n;
+			cout << "Write number of vertices in this graph: ";
+			cin >> n;
+			cout << endl;
+			init_random_DG(graph, n);
+			break;
 
-			default:
-				cout << "Wrong number - try again!" << endl;
-				flag_2 = 1;
+		default:
+			cout << "Wrong number - try again!" << endl;
+			graph_is_chosen = false;
 		}
-	} while (flag_2);
+	} while (!graph_is_chosen);
 
 	cout << "Graph: " << endl;
 	print_graph(graph);
@@ -208,6 +212,6 @@ int main()
 	{
 		cout << "No solutions!" << endl;
 	}
-	
+
 	return 0;
 }
